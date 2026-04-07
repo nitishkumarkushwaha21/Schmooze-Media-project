@@ -11,7 +11,10 @@ export async function POST(request: NextRequest) {
     const ideaText = body.idea_text?.trim();
 
     if (!ideaText) {
-      return NextResponse.json({ error: "idea_text is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "idea_text is required" },
+        { status: 400 },
+      );
     }
 
     let report;
@@ -20,7 +23,8 @@ export async function POST(request: NextRequest) {
       report = await validateStartupIdea(ideaText);
     } catch (error) {
       console.error("AI validation failed, using mock fallback", error);
-      const { id, created_at, idea_text, raw_response, ...mock } = createMockIdeaRecord(ideaText);
+      const { id, created_at, idea_text, raw_response, ...mock } =
+        createMockIdeaRecord(ideaText);
       void id;
       void created_at;
       void idea_text;
@@ -31,7 +35,7 @@ export async function POST(request: NextRequest) {
     const savedIdea = await insertIdea({
       idea_text: ideaText,
       ...report,
-      raw_response: JSON.stringify(report)
+      raw_response: JSON.stringify(report),
     });
 
     revalidatePath("/dashboard");
@@ -42,9 +46,9 @@ export async function POST(request: NextRequest) {
     console.error("Validation failed", error);
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Validation failed"
+        error: error instanceof Error ? error.message : "Validation failed",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

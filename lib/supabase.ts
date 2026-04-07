@@ -22,19 +22,28 @@ function normalizeIdeaRecord(idea: Partial<IdeaRecord>): IdeaRecord {
     competitors: idea.competitors ?? "",
     tech_stack: idea.tech_stack ?? "",
     risk_level:
-      idea.risk_level === "Low" || idea.risk_level === "Medium" || idea.risk_level === "High"
+      idea.risk_level === "Low" ||
+      idea.risk_level === "Medium" ||
+      idea.risk_level === "High"
         ? idea.risk_level
         : "Medium",
     profit_score: typeof idea.profit_score === "number" ? idea.profit_score : 0,
     profit_reasoning: idea.profit_reasoning ?? "",
-    raw_response: idea.raw_response ?? null
+    raw_response: idea.raw_response ?? null,
   };
 }
 
-export async function insertIdea(record: Omit<IdeaRecord, "id" | "created_at">) {
+export async function insertIdea(
+  record: Omit<IdeaRecord, "id" | "created_at">,
+) {
   if (!supabase) {
     const mock = createMockIdeaRecord(record.idea_text);
-    const merged = { ...mock, ...record, id: mock.id, created_at: mock.created_at };
+    const merged = {
+      ...mock,
+      ...record,
+      id: mock.id,
+      created_at: mock.created_at,
+    };
     mockIdeasStore.unshift(merged);
     return merged;
   }
@@ -49,10 +58,14 @@ export async function insertIdea(record: Omit<IdeaRecord, "id" | "created_at">) 
     risk_level: record.risk_level,
     profit_score: record.profit_score,
     raw_response: record.raw_response,
-    profit_reasoning: record.profit_reasoning
+    profit_reasoning: record.profit_reasoning,
   };
 
-  let { data, error } = await supabase.from("ideas").insert([insertPayload]).select().single();
+  let { data, error } = await supabase
+    .from("ideas")
+    .insert([insertPayload])
+    .select()
+    .single();
 
   if (
     error &&
@@ -71,8 +84,8 @@ export async function insertIdea(record: Omit<IdeaRecord, "id" | "created_at">) 
           tech_stack: record.tech_stack,
           risk_level: record.risk_level,
           profit_score: record.profit_score,
-          raw_response: record.raw_response
-        }
+          raw_response: record.raw_response,
+        },
       ])
       .select()
       .single();
@@ -84,14 +97,20 @@ export async function insertIdea(record: Omit<IdeaRecord, "id" | "created_at">) 
   if (error) {
     console.error("Supabase insert failed, using mock fallback", error);
     const mock = createMockIdeaRecord(record.idea_text);
-    const merged = { ...mock, ...record, id: mock.id, created_at: mock.created_at };
+    const merged = {
+      ...mock,
+      ...record,
+      id: mock.id,
+      created_at: mock.created_at,
+    };
     mockIdeasStore.unshift(merged);
     return merged;
   }
 
   return normalizeIdeaRecord({
     ...(data as Partial<IdeaRecord>),
-    profit_reasoning: (data as Partial<IdeaRecord>).profit_reasoning ?? record.profit_reasoning
+    profit_reasoning:
+      (data as Partial<IdeaRecord>).profit_reasoning ?? record.profit_reasoning,
   });
 }
 
@@ -123,7 +142,11 @@ export async function getIdeaById(id: string) {
   }
 
   try {
-    const { data, error } = await supabase.from("ideas").select("*").eq("id", id).single();
+    const { data, error } = await supabase
+      .from("ideas")
+      .select("*")
+      .eq("id", id)
+      .single();
 
     if (error) {
       throw error;

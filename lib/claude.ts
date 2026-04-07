@@ -83,6 +83,39 @@ function parseModelResponse(content: string): Partial<ValidationReport> {
   }
 }
 
+function normalizeRiskLevel(
+  suggestedRisk: ValidationReport["risk_level"] | undefined,
+  score: number,
+): ValidationReport["risk_level"] {
+  if (score >= 82) {
+    return "Low";
+  }
+
+  if (score <= 34) {
+    return "High";
+  }
+
+  if (suggestedRisk === "Low" || suggestedRisk === "Medium" || suggestedRisk === "High") {
+    return suggestedRisk;
+  }
+
+  return "Medium";
+}
+
+function normalizeProfitScore(score: number) {
+  const rounded = Math.round(score);
+
+  if (rounded >= 80) {
+    return Math.min(96, rounded);
+  }
+
+  if (rounded <= 35) {
+    return Math.max(8, rounded);
+  }
+
+  return rounded;
+}
+
 export async function validateStartupIdea(
   ideaText: string,
 ): Promise<ValidationReport> {
@@ -119,6 +152,10 @@ Important:
 - Avoid clustering around 50-70 unless justified
 - Choose Low or High risk when the case is clearly strong or clearly weak
 - Make profit_reasoning explicitly justify the score and risk choice
+- If the idea has proven demand, easy distribution, low regulatory friction, and a realistic MVP, give it a high score and Low risk
+- If the idea is capital-heavy, regulatory-heavy, behavior-change-heavy, or weakly differentiated, score it aggressively lower and use High risk
+- Do not avoid scores above 80 when the idea is genuinely strong
+- Do not avoid scores below 35 when the idea is genuinely weak
 
 Startup Idea: "${ideaText}"
 
@@ -163,6 +200,12 @@ Return this exact JSON structure:
   }
 
   const parsed = parseModelResponse(content);
+  const rawScore =
+    typeof parsed.profit_score === "number" && parsed.profit_score >= 0 && parsed.profit_score <= 100
+      ? parsed.profit_score
+      : 50;
+  const normalizedScore = normalizeProfitScore(rawScore);
+  const normalizedRisk = normalizeRiskLevel(parsed.risk_level, normalizedScore);
 
   return {
     problem: parsed.problem ?? "No problem analysis returned.",
@@ -170,14 +213,8 @@ Return this exact JSON structure:
     market: parsed.market ?? "No market analysis returned.",
     competitors: parsed.competitors ?? "No competitor analysis returned.",
     tech_stack: parsed.tech_stack ?? "No suggested tech stack returned.",
-    risk_level:
-      parsed.risk_level === "Low" || parsed.risk_level === "Medium" || parsed.risk_level === "High"
-        ? parsed.risk_level
-        : "Medium",
-    profit_score:
-      typeof parsed.profit_score === "number" && parsed.profit_score >= 0 && parsed.profit_score <= 100
-        ? parsed.profit_score
-        : 50,
+    risk_level: normalizedRisk,
+    profit_score: normalizedScore,
     profit_reasoning: parsed.profit_reasoning ?? "No profitability reasoning returned."
   };
 }
