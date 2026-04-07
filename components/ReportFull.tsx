@@ -15,8 +15,42 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { IdeaRecord } from "@/types";
 
 function leadSentence(value: string) {
-  const sentence = value.split(/(?<=[.!?])\s+/)[0]?.trim();
-  return sentence && sentence.length > 0 ? sentence : value;
+  const normalized = value
+    .replace(/\r/g, "")
+    .replace(/^[-*]\s*/gm, "")
+    .replace(/\n+/g, " ")
+    .trim();
+
+  if (!normalized) {
+    return "No summary available.";
+  }
+
+  const sentence = normalized.split(/(?<=[.!?])\s+/)[0]?.trim();
+  return sentence && sentence.length > 0 ? sentence : normalized;
+}
+
+function formatCompetitorItems(value: string) {
+  const normalized = value.replace(/\r/g, " ").replace(/\n+/g, " ").trim();
+
+  const splitByNumbering = normalized
+    .split(/\s*(?=\d+\.\s)/)
+    .map((item) => item.replace(/^\d+\.\s*/, "").trim())
+    .filter(Boolean);
+
+  if (splitByNumbering.length >= 2) {
+    return splitByNumbering;
+  }
+
+  const splitByBullets = normalized
+    .split(/\s*[•·]\s*/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (splitByBullets.length >= 2) {
+    return splitByBullets;
+  }
+
+  return null;
 }
 
 function getVerdict(score: number, risk: IdeaRecord["risk_level"]) {
@@ -47,12 +81,14 @@ function ReportSection({
   icon: Icon,
   title,
   content,
-  className
+  className,
+  listItems
 }: {
   icon: typeof Crosshair;
   title: string;
   content: string;
   className?: string;
+  listItems?: string[] | null;
 }) {
   return (
     <section className={className}>
@@ -65,13 +101,25 @@ function ReportSection({
           <div className="mt-2 h-px w-16 bg-foreground/15" />
         </div>
       </div>
-      <p className="text-sm leading-8 text-muted-foreground">{content}</p>
+      {listItems && listItems.length > 0 ? (
+        <ul className="space-y-3 text-sm leading-7 text-muted-foreground">
+          {listItems.map((item) => (
+            <li key={item} className="flex gap-3">
+              <span className="mt-2 h-1.5 w-1.5 rounded-full bg-foreground/45" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm leading-8 text-muted-foreground">{content}</p>
+      )}
     </section>
   );
 }
 
 export function ReportFull({ idea }: { idea: IdeaRecord }) {
   const verdict = getVerdict(idea.profit_score, idea.risk_level);
+  const competitorItems = formatCompetitorItems(idea.competitors);
 
   return (
     <div className="space-y-8">
@@ -81,9 +129,6 @@ export function ReportFull({ idea }: { idea: IdeaRecord }) {
             <div className="max-w-3xl space-y-3">
               <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">Validation Report</p>
               <CardTitle className="text-3xl leading-tight md:text-4xl">{idea.idea_text}</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Generated on {new Date(idea.created_at).toLocaleString()}
-              </p>
             </div>
             <div className="flex flex-wrap gap-3">
               <ScoreBadge score={idea.profit_score} />
@@ -121,7 +166,7 @@ export function ReportFull({ idea }: { idea: IdeaRecord }) {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <div className="rounded-xl border border-zinc-200 bg-background p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Problem Summary
@@ -133,12 +178,6 @@ export function ReportFull({ idea }: { idea: IdeaRecord }) {
                 Market Overview
               </p>
               <p className="mt-3 text-sm leading-6 text-foreground">{leadSentence(idea.market)}</p>
-            </div>
-            <div className="rounded-xl border border-sky-200 bg-sky-50/80 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
-                Competitor Pressure
-              </p>
-              <p className="mt-3 text-sm leading-6 text-foreground">{leadSentence(idea.competitors)}</p>
             </div>
             <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
@@ -179,7 +218,12 @@ export function ReportFull({ idea }: { idea: IdeaRecord }) {
             <ReportSection icon={Crosshair} title="Problem" content={idea.problem} />
             <ReportSection icon={Users} title="Target Customer" content={idea.customer} />
             <ReportSection icon={LineChart} title="Market Opportunity" content={idea.market} />
-            <ReportSection icon={BriefcaseBusiness} title="Competitors" content={idea.competitors} />
+            <ReportSection
+              icon={BriefcaseBusiness}
+              title="Competitors"
+              content={idea.competitors}
+              listItems={competitorItems}
+            />
           </div>
 
           <div className="grid gap-10 border-t pt-10 lg:grid-cols-2 lg:gap-x-12">
